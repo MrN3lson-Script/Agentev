@@ -2,9 +2,9 @@ import os
 import sys
 import requests
 import wikipedia
-import json
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
+import g4f 
 
 def find_query_in_text(text, query, source_name):
     results = []
@@ -100,46 +100,26 @@ def search_wikipedia(query):
     except Exception as e:
         return {"source": "Wikipedia", "error": f"An error occurred: {e}"}
 
-API_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-def ask_gemini(query):
-    print("[GEMINI] Querying AI...")
-    GEMINI_API_KEY = os.getenv("AIzaSyCLjlEI3bMu9zCIpcRrHVECZjHBVIXr1rM")
-
-    if not GEMINI_API_KEY:
-        return {"source": "Gemini AI", "error": "API key GEMINI_API_KEY is not set in environment variables."}
-
-    data = {
-        "contents": [
-            {
-                "role": "user",
-                "parts": [
-                    {"text": f"Answer the following question briefly and to the point in English: {query}"}
-                ]
-            }
-        ]
-    }
-
-    url = f"{API_ENDPOINT}?key={GEMINI_API_KEY}"
-    headers = {"Content-Type": "application/json"}
-
+def ask_g4f(query):
+    print("[GPT 4] Querying AI...")
+    
     try:
-        response = requests.post(url, headers=headers, data=json.dumps(data), timeout=30)
-        response.raise_for_status()
+        response_text = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_4, 
+            messages=[
+                {"role": "user", "content": f"Answer the following question briefly and to the point in English: {query}"}
+            ],
+            stream=False
+        )
         
-        response_data = response.json()
-        
-        if response_data.get('candidates'):
-            answer_text = response_data['candidates'][0]['content']['parts'][0]['text']
-            return {"source": "Gemini AI", "answer": answer_text}
-        elif response_data.get('error'):
-            return {"source": "Gemini AI", "error": f"API Error: {response_data['error']['message']}"}
+        if response_text:
+            return {"source": "g4f AI", "answer": response_text}
         else:
-            return {"source": "Gemini AI", "error": "Failed to extract answer from JSON."}
+            return {"source": "g4f AI", "error": "g4f returned an empty response."}
 
-    except requests.exceptions.RequestException as e:
-        return {"source": "Gemini AI", "error": f"HTTP Request Error: {e}"}
     except Exception as e:
-        return {"source": "Gemini AI", "error": f"Unexpected error: {e}"}
+        return {"source": "g4f AI", "error": f"g4f Error (provider issue likely): {e}"}
+
 
 def agentev():
     os.system("clear")
@@ -194,7 +174,7 @@ def agentev():
         all_results['web_parsing'] = search_website_content(web_url, user_query)
 
     all_results['wikipedia'] = search_wikipedia(user_query)
-    all_results['gemini'] = ask_gemini(user_query)
+    all_results['g4f'] = ask_g4f(user_query)
 
     print("\n\n========================================================")
     print(f"OVERALL SEARCH RESULTS FOR QUERY: '{user_query}'")
@@ -232,12 +212,12 @@ def agentev():
         print(f"    [TITLE]: {wiki_res['title']}")
         print(f"    [SUMMARY]: {wiki_res['text']}")
 
-    gemini_res = all_results['gemini']
-    print("\n--- GEMINI AI ---")
-    if 'error' in gemini_res:
-        print(f"    ERROR: {gemini_res['error']}")
+    g4f_res = all_results['g4f']
+    print("\n--- g4f AI ---")
+    if 'error' in g4f_res:
+        print(f"    ERROR: {g4f_res['error']}")
     else:
-        print(f"    [RESPONSE]: {gemini_res['answer']}")
+        print(f"    [RESPONSE]: {g4f_res['answer']}")
 
 if __name__ == "__main__":
     agentev()
